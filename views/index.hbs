@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chat con NestJS y WebSockets</title>
+  <!-- Incluir Bootstrap CSS desde CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    #overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7); /* Fondo oscuro */
+}
+
+#modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 20px;
+  z-index: 1000;
+}
+
+#loading-spinner-container {
+  display: none;
+  justify-content: center;
+  align-items: center;
+  height: 10vh;
+}
+
+#loading-spinner {
+  border: 4px solid #f3f3f3; /* Light grey */
+  border-top: 4px solid #3498db; /* Blue */
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+  </style>
+</head>
+<body>
+
+  <div class="container mt-5">
+    <div class="row">
+      <div class="col-md-6 offset-md-3">
+        <div class="card">
+          <div class="card-header">
+            Chat
+          </div>
+          <div class="card-body" id="message-container">
+            <!-- Los mensajes se añadirán aquí -->
+          </div>
+<div id="overlay">
+   <div class="card" id="modal">
+          <div class="card-header" id="roomHeader">
+            ROOM
+          </div>
+          <div class="card-footer" id="roomForm">
+            <input type="text" id="room-create-join" class="form-control mb-2" placeholder="Ingresa tu el nombre del room">
+            <button class="btn btn-primary" onclick="createRoom()">CrearRoom</button>
+          </div>
+          <div id="loading-spinner-container">
+  <div id="loading-spinner"></div>
+</div>
+          
+        </div>
+          
+  </div>
+
+          <div class="card-footer">
+            <input type="text" id="username" class="form-control mb-2" placeholder="Ingresa tu nombre">
+            <input type="text" id="to" class="form-control mb-2" placeholder="Ingresa ID destino">
+            <textarea class="form-control mb-2" id="message" placeholder="Ingresa tu mensaje"></textarea>
+            <button class="btn btn-primary" onclick="sendMessage()">Enviar</button>
+          </div>
+          <div class=" d-flex justify-content-between align-items-center">
+            <button class="btn btn-info" onclick="openCreateRoom()">Crear un room</button>
+            <button class="btn btn-info" onclick="openJoinRoom()">Unirse a un room</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="roomsito" class="form-control mb-2" disabled>
+        <input type="text" id="from" class="form-control mb-2" disabled>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">cancelar</button>
+        <button type="button" class="btn btn-primary">aceptar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- Incluir Socket.io -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Incluir Bootstrap JS desde CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      const socket = io('http://localhost:3000');
+      let modal;
+      // Al recibir un mensaje 'init' del servidor
+      socket.on('serverMessage', (msg) => {
+        appendMessage(`Servidor: ${msg}`,msg);
+      });
+
+      socket.on('channelExists', (msg) => {
+        closing(msg);
+      });
+
+      socket.on('joinChannelRequest', (msg) => {
+        $('#exampleModal').modal('show');
+        document.getElementById('roomsito').value=msg.channelName;
+        document.getElementById('from').value=msg.requesterId;
+      });
+
+      socket.on('joinedChannel', (msg) => {
+        closing(msg);
+      });
+
+      socket.on('userjoined', (msg) => {
+       appendMessage(`Servidor: ${msg}`,msg);
+      });
+
+      socket.on('joinRequestRejected', (msg) => {
+        closing(msg);
+      });
+
+      socket.on('channelCreated', (msg) => {
+        closing(msg);
+      });
+
+      socket.on('newMessage', (msg) => {
+      appendMessage(`${msg.from} : ${msg.text}`,msg);
+      });
+
+      function closing(msg){
+        appendMessage(`Servidor: ${msg}`,msg);
+        hideLoadingSpinner();
+        closeOverlay();
+      }
+
+      function openCreateRoom(){
+        modal="create";
+        document.getElementById("roomHeader").innerText="Crear room";
+        openOverlay();
+      }
+      
+      // Al recibir un mensaje 'message' del servidor
+
+      // Función para agregar mensajes al contenedor de mensajes
+
+
+      function openJoinRoom(){
+        modal="join";
+        document.getElementById("roomHeader").innerText="Unirse al room";
+        openOverlay();
+        
+      }
+
+      function rejectJoinin(){
+        const requesterId = document.getElementById('from').value;
+        const channelName = document.getElementById('roomsito').value;
+        data = { channelName: channelName, requesterId: requesterId };
+        socket.emit('rejectJoinin', data);
+      }
+
+      function aceptJoinin(){
+        const requesterId = document.getElementById('from').value;
+        const channelName = document.getElementById('roomsito').value;
+        data = { channelName: channelName, requesterId: requesterId };
+        socket.emit('acceptJoinRequest', data);
+      }
+
+
+      function createRoom(){
+        showLoadingSpinner();
+        document.getElementById("roomHeader").innerText=modal=="create"?"Creando room...":"Uniendo al room...";
+        const roomToCreate = document.getElementById('room-create-join').value;
+        const from = document.getElementById('username').value;
+        // Emitir el mensaje al servidor
+        if(modal=="create")
+          socket.emit('createChannel', { channelName: roomToCreate, requesterId: from });
+        else
+          socket.emit('joinChannel', { channelName: roomToCreate, requesterId: from });
+        document.getElementById('room-create-join').value = '';
+
+        // Opcional: añadir el mensaje propio al chat
+        if(modal=="create")
+          appendMessage(`*Yo*: solicitud para crear canal ${roomToCreate}`,Object);
+        else
+          appendMessage(`*Yo*: solicitud para unirme al canal ${roomToCreate}`,Object);
+      
+      }
+
+      function Room(){
+        showLoadingSpinner();
+        document.getElementById("roomHeader").innerText="Solitando unirte al room...";
+        const roomToCreate = document.getElementById('room-create-join').value;
+
+        // Emitir el mensaje al servidor
+        socket.emit('joinChannelRequest', roomToCreate);
+        document.getElementById('room-create-join').value = '';
+
+        // Opcional: añadir el mensaje propio al chat
+        appendMessage(`*Yo*: solicitud para unirme al canal ${roomToCreate}`,Object);
+        }
+
+      function copyDirection(to){
+      const toInput = document.getElementById('to');
+      toInput.value=to;
+      }
+
+      function appendMessage(msg, messageObject) {
+      const messageContainer = document.getElementById('message-container');
+      const messageItem = document.createElement('div');
+      messageItem.addEventListener('click', () => copyDirection(messageObject.user));
+      messageItem.className = 'mb-2'; // Agregar margen inferior
+      messageItem.innerText = msg;
+      
+      messageContainer.appendChild(messageItem);
+      
+      
+
+      }
+
+      // Función para enviar mensajes
+      function sendMessage() {
+      const from = document.getElementById('username').value;
+      const channelName = document.getElementById('to').value;
+      const text = document.getElementById('message').value;
+
+      // Emitir el mensaje al servidor
+      socket.emit('sendMessage', { channelName, text, from});
+      document.getElementById('message').value = '';
+
+      // Opcional: añadir el mensaje propio al chat
+      appendMessage(`*Yo*: ${text}`,Object);
+      }
+
+      function openOverlay() {
+        document.getElementById('overlay').style.display = 'block';
+        document.body.style.overflow = 'hidden'; // Deshabilita el desplazamiento de la página subyacente
+      }
+
+      function closeOverlay() {
+        document.getElementById('overlay').style.display = 'none';
+        document.body.style.overflow = 'auto'; // Habilita el desplazamiento de la página subyacente
+        hideLoadingSpinner();
+      }
+      function showLoadingSpinner() {
+      document.getElementById('loading-spinner-container').style.display = 'flex';
+      document.getElementById('roomForm').style.display = 'none'; // Deshabilita el desplazamiento de la página subyacente
+
+    }
+
+      function hideLoadingSpinner() {
+    document.getElementById('loading-spinner-container').style.display = 'none';
+    document.getElementById('roomForm').style.display = 'block';
+    }
+
+
+      
+    </script>
+    
+  </body>
+  </html>
