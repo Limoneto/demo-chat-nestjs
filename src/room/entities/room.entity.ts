@@ -1,11 +1,15 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { Msg } from 'src/chat/entities/msg.entity';
-import { User } from 'src/user.schema';
+import { User } from 'firebase/auth';
+import mongoose, { Document } from 'mongoose';
+import { AbstractPassword } from 'src/Interfaces/IPassword.I';
+import {  MsgRoom } from 'src/msg/entities/msg.entity';
 export type RoomDocument = Room & Document;
 
 @Schema()
-export class Room {
+export class Room extends AbstractPassword {
+
+  @Prop({required: true, unique: true}) 
+  id: string;
 
   @Prop() 
   descripcion: string;
@@ -13,30 +17,31 @@ export class Room {
   @Prop({required: true, unique: true}) 
   name: string;
 
-  @Prop({required: true, default: false})
-  password: string;
-
-  @Prop({required: true})
+  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }] })
   owner: User;
 
-  @Prop({ required: true, default: []})
-  messages: Msg[];
+  @Prop({ required: true, type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'MsgRoom' }] })
+  messages: MsgRoom[];
 
   @Prop({required: true,default: false})
   isOpen: boolean;
 
   @Prop({required: true, unique: true})
   channelId: string;
+  
+  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }] })
+  members: Set<User>;
 
-  constructor(descripcion: string, name: string, id: string, password: string, owner: User, messages: Msg[], isOpen: boolean, channelId: string){
-    this.descripcion = descripcion;
-    this.name = name;
-    this.id = id;
-    this.password = password;
-    this.owner = owner;
-    this.messages = messages;
-    this.isOpen = isOpen;
-    this.channelId = channelId;
+  constructor(roomDocument: RoomDocument){
+    super();
+    this.descripcion = roomDocument.descripcion;
+    this.name = roomDocument.name;
+    this.password = roomDocument.password;
+    this.owner = roomDocument.owner;
+    this.messages = roomDocument.messages;
+    this.isOpen = roomDocument.isOpen;
+    this.channelId = roomDocument.channelId;
+    this.id = roomDocument.id;
   }
 
 }

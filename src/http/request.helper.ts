@@ -4,7 +4,7 @@ import { IncomingHttpHeaders } from 'http';
 //import jwtDecode from 'jwt-decode';  // TODO: Uncomment this line after installing the jwt-decode package
 // TODO: USAR JWT Y GUARDS
 
-interface ComviHeader extends IncomingHttpHeaders {
+interface chatHeader extends IncomingHttpHeaders {
   authorization ?: string;
 }
 
@@ -32,13 +32,13 @@ export class RequestHelper {
       let email: string = '';
 
       const req : Request = request;
-      const head : ComviHeader = req.headers;
+      const head : chatHeader = req.headers;
 
       if(head.authorization){
         auth = head.authorization;
         token = auth.split(' ')[1];
-        // const payload : Payload = jwtDecode(token);
-        // email = payload.user.email;
+        const payload : Payload = jwtDecode(token);
+        email = payload.user.email;
       }
 
       return email;
@@ -46,5 +46,9 @@ export class RequestHelper {
       console.error(error);
     }
   }
+}
+
+function jwtDecode(token: any): Payload {
+  throw new Error('Function not implemented.');
 }
 

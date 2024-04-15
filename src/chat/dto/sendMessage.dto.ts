@@ -1,4 +1,4 @@
-export default class SendMessageDto {
+export class SendMessageDto {
     fromNick: string;
     message: string;
     data: any;

@@ -9,7 +9,7 @@ async function bootstrap() {
   //TODO: Documentacion de Swagger
   const config = new DocumentBuilder()
     .setTitle('CHAT GATEWAY - REST API')
-    .setDescription('REST API - Proyecto Final ISI UTN')
+    .setDescription('REST API - Proyecto CHAT POC')
     .setVersion('1.0')
     .addTag('auth')
     .addTag('users')
@@ -17,10 +17,13 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('/', app, document);
 
-  //TODO: Para que se active el uso de pipes
-
-  app.useGlobalPipes( new ValidationPipe());
-  
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      disableErrorMessages: false,
+    }),
+  );
   await app.listen(process.env.PORT || 3000);
 }
 bootstrap();
